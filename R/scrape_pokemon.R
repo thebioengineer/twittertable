@@ -39,7 +39,6 @@ pokemon_cards <- poke_list_html %>%
 
 pokemon_images <- poke_list_html %>% 
   html_nodes("table") %>%  ## go to table element
-  `[[`(1) %>% 
   html_nodes("td") %>% 
   as.character() %>% 
   lapply(function(x){
@@ -105,15 +104,6 @@ pokedex <- function(pokemon){
 poke_details <- pokemon_cards %>% 
   map( ~ pokedex(.x))
 
-poke_table <- poke_details %>% 
-  bind_rows() %>% 
-  left_join(
-    pokemon_images, by = "href"
-  )
-
-
-
-
 c_vec <- c(Grass = "green",
            Fire  = "firered",
            Water = "mediumblue",
@@ -132,30 +122,39 @@ c_vec <- c(Grass = "green",
            Flying = "airforceblue",
            Steel = "grey30")
 
-poke_output <- poke_table %>%
+poke_table <- poke_details %>% 
+  bind_rows() %>% 
+  left_join(
+    pokemon_images, by = "href"
+  ) %>% 
   separate(type,
            c("Type 1", "Type 2"),
            sep = "/", fill = "right"
   ) %>% 
+  mutate(
+  `Type 1` = color_vctr(
+    `Type 1`,
+    text_color = c_vec[`Type 1`]
+  ),
+  `Type 2` = color_vctr(
+    `Type 2`,
+    text_color = c_vec[`Type 2`]
+  )) %>% 
+  select( -href, -evolve_level)
+
+
+poke_output <- poke_table %>%
   filter(!is.na(image)) %>% 
   mutate(
-    `Type 1` = color_vctr(
-      `Type 1`,
-      text_color = c_vec[`Type 1`]
-    ),
-    `Type 2` = color_vctr(
-      `Type 2`,
-      text_color = c_vec[`Type 2`]
-    ),
-    Photo = paste0("<img src='",gsub("&quality=20&dpr=0.05","",image),"' height= '30px'/>")
+    Photo = paste0("<img src='",gsub("&quality=20&dpr=0.05","",image),"' height= '50px'/>")
   ) %>%
   mutate(
-      Type_1_html = format(`Type 1`, method = "html"),
-      Type_2_html = format(`Type 2`, method = "html"),
-      Type = ifelse(
-        is.na(`Type 2`),
-        Type_1_html,
-        paste0(Type_1_html,"/",Type_2_html))
+    Type_1_html = format(`Type 1`, method = "html"),
+    Type_2_html = format(`Type 2`, method = "html"),
+    Type = ifelse(
+      is.na(`Type 2`),
+      Type_1_html,
+      paste0(Type_1_html,"/",Type_2_html))
   ) %>%
   select(
     Number = pokemon_number,
@@ -166,7 +165,6 @@ poke_output <- poke_table %>%
 
 list(
   data = poke_output,
-  
   options = list(
     html = list(
       Number  = FALSE,
@@ -175,10 +173,10 @@ list(
       Type    = TRUE
       ),
     rows = list(
-      min = 10,
+      min = 5,
       max = 20
     )
   )) %>%
-  write_json(path = "pokemon.json")
+  write_json(path = "pokemon.json",auto_unbox = TRUE)
   
 
